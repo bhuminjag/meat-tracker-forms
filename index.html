@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -288,7 +289,7 @@
 
 <script>
 // ── CONFIG — update GAS_URL after each new deployment ─────────────────────────
-const GAS_URL  = "https://script.google.com/macros/s/AKfycbwrq0T_kNhVNkRSvoWDlYaX-tTfcID9u2Cg-Vf4BnDKZYPc1dnW3TeoqQu2IkoNJxL1/exec";
+const GAS_URL  = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
 const LIFF_ID  = "2009974531-z4VdTaCQ";
 
 // ── Form type from URL (?type=pending / reprocess / recovery) ─────────────────
@@ -336,10 +337,23 @@ window.addEventListener("load", async () => {
   loadDropdowns();
 });
 
+// Script-tag injection — never blocked by CORS in any browser or WebView.
+function jsonpFetch(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = "liff_cb_" + Date.now() + "_" + Math.floor(Math.random() * 9999);
+    const script = document.createElement("script");
+    const timer  = setTimeout(() => { cleanup(); reject(new Error("timeout")); }, 12000);
+    window[cbName] = (data) => { clearTimeout(timer); cleanup(); resolve(data); };
+    script.onerror = () => { clearTimeout(timer); cleanup(); reject(new Error("network error")); };
+    function cleanup() { delete window[cbName]; if (script.parentNode) script.parentNode.removeChild(script); }
+    script.src = url + (url.includes("?") ? "&" : "?") + "callback=" + cbName;
+    document.head.appendChild(script);
+  });
+}
+
 async function loadDropdowns() {
   try {
-    const res  = await fetch(GAS_URL + "?action=getDropdowns");
-    const data = await res.json();
+    const data = await jsonpFetch(GAS_URL + "?action=getDropdowns");
     dropdownData = data;
     populateDropdowns(data);
     showForm();
@@ -487,10 +501,8 @@ async function submitForm() {
   btn.textContent = "Submitting…";
 
   try {
-    // Send as GET with flat URL params — avoids CORS preflight and POST redirect issues
     const params = new URLSearchParams({ action: "submit", type: FORM_TYPE, ...data });
-    const res    = await fetch(GAS_URL + "?" + params.toString());
-    const result = await res.json();
+    const result = await jsonpFetch(GAS_URL + "?" + params.toString());
 
     if (!result.success) throw new Error(result.error || "Server error");
 
