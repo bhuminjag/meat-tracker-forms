@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Sales Form</title>
+<script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --blue:   #2563eb;
+    --red:    #dc2626;
+    --purple: #7c3aed;
+    --green:  #16a34a;
+    --gray:   #6b7280;
+    --dark:   #1a1a2e;
+    --bg:     #f4f4f5;
+    --card:   #ffffff;
+    --border: #e4e4e7;
+    --text:   #18181b;
+    --muted:  #71717a;
+    --radius: 10px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); font-size: 15px; min-height: 100vh; padding-bottom: 180px; }
+
+  .card { background: var(--card); border-radius: var(--radius); margin: 12px 12px 0; padding: 14px 14px 6px; box-shadow: 0 1px 3px rgba(0,0,0,.07); }
+  .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+  .field { margin-bottom: 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  label .req { color: var(--red); margin-left: 2px; }
+  input[type="text"], input[type="number"], input[type="date"], select, textarea {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 15px; color: var(--text); background: #fff;
+    appearance: none; -webkit-appearance: none; outline: none; transition: border-color .15s;
+  }
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center; padding-right: 36px;
+  }
+  textarea { resize: vertical; min-height: 76px; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { border-color: var(--blue); }
+  input[readonly] { background: #f5f5f5; color: var(--muted); cursor: default; }
+
+  /* ── Submit footer ── */
+  .submit-wrap { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--border); padding: 10px 12px; z-index: 200; }
+  .btn-submit { width: 100%; padding: 13px; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; color: #fff; cursor: pointer; transition: opacity .15s; }
+  .btn-submit:active { opacity: .82; }
+  .btn-submit:disabled { opacity: .45; cursor: not-allowed; }
+  /* Two-button row above the main close button */
+  .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .btn-group .btn-submit { padding: 11px 4px; font-size: 13px; }
+
+  /* ── Spinner / loading ── */
+  #loading { position: fixed; inset: 0; background: rgba(255,255,255,.92); display: flex; align-items: center; justify-content: center; z-index: 500; flex-direction: column; gap: 12px; }
+  .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Toast ── */
+  #toast { position: fixed; bottom: 175px; left: 50%; transform: translateX(-50%); background: #18181b; color: #fff; padding: 10px 20px; border-radius: 999px; font-size: 14px; opacity: 0; transition: opacity .3s; z-index: 400; white-space: nowrap; pointer-events: none; }
+  #toast.show { opacity: 1; }
+
+  /* ── Success ── */
+  #success { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; padding: 32px; }
+  #success .icon { font-size: 64px; margin-bottom: 16px; }
+  #success h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  #success p { color: var(--muted); font-size: 15px; }
+
+  /* ── Profile Setup ── */
+  #profile-setup { display: none; }
+  .hdr-profile { background: var(--green); color: #fff; padding: 16px 16px 14px; position: sticky; top: 0; z-index: 100; }
+  .hdr-profile h1 { font-size: 17px; font-weight: 700; }
+  .hdr-profile p { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 2px; }
+
+  /* ── Data Entry ── */
+  #data-entry { display: none; }
+  #profile-banner { display: none; background: #f0fdf4; border-bottom: 2px solid #bbf7d0; padding: 9px 14px; font-size: 13px; font-weight: 600; color: #15803d; position: sticky; top: 0; z-index: 99; }
+  .form-tabs { display: flex; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 98; }
+  .tab-btn { flex: 1; padding: 10px 4px; border: none; background: none; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; }
+  .tab-btn[data-type="pending"].active   { color: var(--blue);   border-bottom-color: var(--blue); }
+  .tab-btn[data-type="reprocess"].active { color: var(--purple); border-bottom-color: var(--purple); }
+  .tab-btn[data-type="recovery"].active  { color: var(--red);    border-bottom-color: var(--red); }
+  .form-panel { display: none; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <span style="color:#888;font-size:14px">Loading…</span>
+</div>
+<div id="toast"></div>
+
+<div id="success">
+  <div class="icon">✅</div>
+  <h2>Submitted!</h2>
+  <p>Your form has been recorded.<br>This window will close shortly.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PROFILE SETUP — shown once for new users
+════════════════════════════════════════════════════ -->
+<div id="profile-setup">
+  <div class="hdr-profile">
+    <h1>👤 Welcome!</h1>
+    <p>One-time profile setup — takes 30 seconds</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Your Profile</div>
+    <div class="field">
+      <label>Your Name</label>
+      <input type="text" id="ps-name" readonly placeholder="From your LINE account">
+    </div>
+    <div class="field">
+      <label>Your Role <span class="req">*</span></label>
+      <select id="ps-role">
+        <option value="Sales Rep">Sales Rep</option>
+        <option value="Supervisor">Supervisor</option>
+        <option value="Manager">Manager</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Team <span class="req">*</span></label>
+      <select id="ps-team" onchange="filterProfileSupervisors()">
+        <option value="">— select your team —</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Reports To <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+      <select id="ps-reports-to">
+        <option value="">— none / head of team —</option>
+      </select>
+    </div>
+  </div>
+  <div class="submit-wrap">
+    <button class="btn-submit" id="btn-profile" style="background:var(--green)" onclick="submitProfileSetup()">Save &amp; Continue →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     DATA ENTRY — shown for returning users
+════════════════════════════════════════════════════ -->
+<div id="data-entry">
+
+  <div id="profile-banner">
+    <span id="profile-text">👤 Loading…</span>
+  </div>
+
+  <div class="form-tabs" id="form-tabs">
+    <button class="tab-btn" data-type="pending"   onclick="switchTab('pending')">📋 Pending</button>
+    <button class="tab-btn" data-type="reprocess" onclick="switchTab('reprocess')">⚙️ Reprocess</button>
+    <button class="tab-btn" data-type="recovery"  onclick="switchTab('recovery')">💔 Recovery</button>
+  </div>
+
+  <!-- ── PENDING ENQUIRY ── -->
+  <div id="form-pending" class="form-panel">
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Basic Info</div>
+      <div class="field"><label>Entry Date <span class="req">*</span></label><input type="date" id="p-entry_date"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Customer</div>
+      <div class="field"><label>Customer Name <span class="req">*</span></label><input type="text" id="p-customer_name" placeholder="Shop / business name"></div>
+      <div class="field"><label>Shop Type <span class="req">*</span></label><select id="p-shop_type"><option value="">— select —</option></select></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Product</div>
+      <div class="field"><label>Category <span class="req">*</span></label><select id="p-category" onchange="filterCuts('p')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
+      <div class="field"><label>Cut <span class="req">*</span></label><select id="p-beef_cut"><option value="">— select category first —</option></select></div>
+      <div class="field"><label>Grade</label><select id="p-beef_grade"><option value="">— select —</option></select></div>
+      <div class="field"><label>Product Spec</label><input type="text" id="p-product_spec" placeholder="e.g. 2-4kg, boneless, frozen"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Commercial</div>
+      <div class="field"><label>Monthly Volume (kg)</label><input type="number" id="p-monthly_volume" placeholder="0" min="0" step="0.1"></div>
+      <div class="field"><label>Target Price (฿/kg)</label><input type="number" id="p-target_price" placeholder="0" min="0" step="0.01"></div>
+      <div class="field"><label>Current Supplier</label><input type="text" id="p-current_supplier" placeholder="Who supplies them now?"></div>
+      <div class="field"><label>Enquiry Notes</label><textarea id="p-notes" placeholder="Any additional context…" maxlength="200"></textarea></div>
+    </div>
+  </div>
+
+  <!-- ── REPROCESS REQUEST ── -->
+  <div id="form-reprocess" class="form-panel">
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Basic Info</div>
+      <div class="field"><label>Request Date <span class="req">*</span></label><input type="date" id="r-request_date"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Customer</div>
+      <div class="field"><label>Customer Name <span class="req">*</span></label><input type="text" id="r-customer_name" placeholder="Shop / business name"></div>
+      <div class="field"><label>Shop Type</label><select id="r-shop_type"><option value="">— select —</option></select></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Product</div>
+      <div class="field"><label>Category</label><select id="r-category" onchange="filterCuts('r')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
+      <div class="field"><label>Cut</label><select id="r-beef_cut"><option value="">— select category first —</option></select></div>
+      <div class="field"><label>Grade</label><select id="r-beef_grade"><option value="">— select —</option></select></div>
+      <div class="field"><label>Product Spec</label><input type="text" id="r-product_spec" placeholder="e.g. 2-4kg, boneless"></div>
+      <div class="field"><label>Product Code</label><input type="text" id="r-product_code" placeholder="Existing code if known"></div>
+      <div class="field"><label>Code Exists?</label><select id="r-code_exists"><option value="">— select —</option></select></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Commercial</div>
+      <div class="field"><label>Expected Monthly Volume (kg)</label><input type="number" id="r-expected_volume" placeholder="0" min="0" step="0.1"></div>
+      <div class="field"><label>Target Price (฿/kg)</label><input type="number" id="r-target_price" placeholder="0" min="0" step="0.01"></div>
+      <div class="field"><label>Reprocess Type</label><select id="r-reprocess_type"><option value="">— select —</option></select></div>
+      <div class="field"><label>Last Chase Date</label><input type="date" id="r-last_chase_date"></div>
+      <div class="field"><label>Notes</label><textarea id="r-notes" placeholder="Any additional context…" maxlength="200"></textarea></div>
+    </div>
+  </div>
+
+  <!-- ── LOST BUSINESS RECOVERY ── -->
+  <div id="form-recovery" class="form-panel">
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Basic Info</div>
+      <div class="field"><label>Entry Date <span class="req">*</span></label><input type="date" id="lb-entry_date"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Customer</div>
+      <div class="field"><label>Customer Code</label><input type="text" id="lb-customer_code" placeholder="System code if known"></div>
+      <div class="field"><label>Customer Name <span class="req">*</span></label><input type="text" id="lb-customer_name" placeholder="Shop / business name"></div>
+      <div class="field"><label>Shop Type</label><select id="lb-shop_type"><option value="">— select —</option></select></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Lost Product</div>
+      <div class="field"><label>Category</label><select id="lb-category" onchange="filterCuts('lb')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
+      <div class="field"><label>Cut</label><select id="lb-beef_cut"><option value="">— select category first —</option></select></div>
+      <div class="field"><label>Grade</label><select id="lb-beef_grade"><option value="">— select —</option></select></div>
+      <div class="field"><label>Product Code</label><input type="text" id="lb-product_code" placeholder="Product code"></div>
+      <div class="field"><label>Product Details / Notes</label><textarea id="lb-product_details" placeholder="Describe the product…" maxlength="200"></textarea></div>
+      <div class="field"><label>Previous Monthly Volume (kg)</label><input type="number" id="lb-prev_volume" placeholder="0" min="0" step="0.1"></div>
+      <div class="field"><label>Previous Price (฿/kg)</label><input type="number" id="lb-prev_price" placeholder="0" min="0" step="0.01"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Loss Details</div>
+      <div class="field"><label>Loss Type <span class="req">*</span></label><select id="lb-loss_type"><option value="">— select —</option></select></div>
+      <div class="field"><label>Competitor / New Supplier</label><input type="text" id="lb-competitor_supplier" placeholder="Who did they switch to?"></div>
+      <div class="field"><label>Competitor Price (฿/kg)</label><input type="number" id="lb-competitor_price" placeholder="0" min="0" step="0.01"></div>
+      <div class="field"><label>What Went Wrong?</label><textarea id="lb-what_went_wrong" placeholder="Explain what happened…" maxlength="200"></textarea></div>
+      <div class="field"><label>When Did We Lose Them?</label><input type="date" id="lb-when_did_we_lose"></div>
+      <div class="field"><label>Was This Preventable?</label><select id="lb-was_preventable"><option value="">— select —</option></select></div>
+    </div>
+  </div>
+
+  <!-- Three-button submit footer -->
+  <div class="submit-wrap">
+    <div class="btn-group">
+      <button class="btn-submit" id="btn-add-item" style="background:var(--blue)"   onclick="submitForm('add-item')">➕ Add Item</button>
+      <button class="btn-submit" id="btn-add-new"  style="background:var(--gray)"   onclick="submitForm('add-new')">📋 Add New</button>
+    </div>
+    <button class="btn-submit" id="btn-close" style="background:var(--green)" onclick="submitForm('close')">✅ Submit &amp; Close</button>
+  </div>
+
+</div><!-- /data-entry -->
+
+<script>
+// ── Config ───────────────────────────────────────────────────────────────────
+const GAS_URL  = "https://script.google.com/macros/s/AKfycbydXQlz-A_ZbkQbxsmcZ8lwN2CjjQxcb17HQqm1h-wUA344zpkPpwItSj1fB089Kz6Y/exec";
+const LIFF_ID  = "2009974531-z4VdTaCQ";
+const DD_CACHE = "mtracker_dd_v1";          // localStorage key for dropdown cache
+const DD_TTL   = 24 * 60 * 60 * 1000;      // 24-hour cache
+
+// ── State ────────────────────────────────────────────────────────────────────
+const FORM_TYPE    = new URLSearchParams(window.location.search).get("type") || "pending";
+window.currentUser = null;  // { lineUserId, name, role, team, reportsTo }
+let dropdownData   = null;
+let currentTab     = FORM_TYPE;
+
+// ── Startup ──────────────────────────────────────────────────────────────────
+// LIFF and dropdowns run fully in parallel.
+// checkUser() fires as soon as LIFF resolves — it never waits for dropdowns.
+// Dropdowns come from localStorage cache (instant) then refresh from GAS in background.
+
+window.addEventListener("load", () => {
+  setTodayDates();
+  loadDropdowns();   // synchronous cache/fallback + async background refresh
+  initLIFF();        // async; calls checkUser() when done
+});
+
+// Dropdowns: serve cache immediately, refresh in background
+function loadDropdowns() {
+  const cached = getCachedDropdowns();
+  if (cached) {
+    dropdownData = cached;
+    populateDropdowns(cached);
+    console.log("Dropdowns: from cache (" + (cached.teams || []).length + " teams)");
+  } else {
+    populateFallbackDropdowns();
+    console.log("Dropdowns: from fallback (no cache yet)");
+  }
+  // Background refresh — updates dropdowns and cache when GAS responds
+  jsonpCall(GAS_URL + "?action=getDropdowns")
+    .then(data => {
+      dropdownData = data;
+      populateDropdowns(data);
+      setCachedDropdowns(data);
+      // Re-apply to profile setup team dropdown if currently visible
+      const psTeam = document.getElementById("ps-team");
+      if (psTeam) fillSelect("ps-team", data.teams || []);
+      console.log("Dropdowns: refreshed from GAS (" + (data.teams || []).length + " teams)");
+    })
+    .catch(err => console.warn("Dropdown background refresh failed:", err.message));
+}
+
+// LIFF init — calls checkUser() the moment we have (or don't have) a lineUserId
+async function initLIFF() {
+  console.log("STEP 1: initLIFF() starting, LIFF_ID=" + LIFF_ID);
+  try {
+    await Promise.race([
+      liff.init({ liffId: LIFF_ID }),
+      new Promise((_, rej) => setTimeout(() => rej(new Error("liff.init timeout")), 10000)),
+    ]);
+    console.log("STEP 1: LIFF initialized. isLoggedIn=" + liff.isLoggedIn());
+    if (liff.isLoggedIn()) {
+      const p = await liff.getProfile();
+      window.currentUser = {
+        lineUserId: p.userId,
+        name:       p.displayName || "",
+        role:       "Sales Rep",
+        team:       "",
+        reportsTo:  "",
+      };
+      console.log("STEP 2: Got profile. lineUserId=" + p.userId + " name=" + p.displayName);
+    } else {
+      console.log("STEP 2: LIFF not logged in — no lineUserId");
+    }
+  } catch (err) {
+    console.warn("STEP 1: LIFF init failed:", err.message);
+  }
+  checkUser();  // fire immediately — don't wait for dropdown refresh
+}
+
+// ── User routing ──────────────────────────────────────────────────────────────
+
+async function checkUser() {
+  console.log("STEP 3: checkUser() — currentUser=" + JSON.stringify(window.currentUser));
+
+  if (!window.currentUser || !window.currentUser.lineUserId) {
+    console.log("STEP 3: No lineUserId — showing data entry");
+    showDataEntry();
+    return;
+  }
+
+  console.log("STEP 3: Calling checkUser via JSONP...");
+  try {
+    const result = await jsonpCall(
+      GAS_URL + "?action=checkUser&lineUserId=" + encodeURIComponent(window.currentUser.lineUserId)
+    );
+    console.log("STEP 3: result=" + JSON.stringify(result));
+
+    if (result.exists && result.profile && result.profile.team) {
+      console.log("STEP 4b: RETURNING USER team=" + result.profile.team + " → data entry");
+      const p = result.profile;
+      window.currentUser.name      = p.name      || window.currentUser.name;
+      window.currentUser.role      = p.role      || "Sales Rep";
+      window.currentUser.team      = p.team;
+      window.currentUser.reportsTo = p.reportsTo || "";
+      showDataEntry();
+    } else {
+      console.log("STEP 4a: NEW USER (or missing team) → profile setup");
+      showProfileSetup();
+    }
+  } catch (err) {
+    console.warn("STEP 3: checkUser failed:", err.message);
+    console.log("STEP 4a (fallback): showing profile setup");
+    showProfileSetup();
+  }
+}
+
+// ── Profile Setup ─────────────────────────────────────────────────────────────
+
+function showProfileSetup() {
+  document.getElementById("loading").style.display       = "none";
+  document.getElementById("profile-setup").style.display = "block";
+  const nameEl = document.getElementById("ps-name");
+  if (nameEl && window.currentUser) nameEl.value = window.currentUser.name || "";
+  if (dropdownData) {
+    fillSelect("ps-team", dropdownData.teams || []);
+    fillSupervisorSelect("ps-reports-to", dropdownData.supervisors || []);
+  }
+}
+
+function filterProfileSupervisors() {
+  if (!dropdownData) return;
+  const team     = document.getElementById("ps-team").value;
+  const filtered = (dropdownData.supervisors || []).filter(s => !team || !s.team || s.team === team);
+  fillSupervisorSelect("ps-reports-to", filtered);
+}
+
+async function submitProfileSetup() {
+  const name      = (document.getElementById("ps-name").value || "").trim();
+  const role      = document.getElementById("ps-role").value;
+  const team      = document.getElementById("ps-team").value;
+  const reportsTo = document.getElementById("ps-reports-to").value;
+  const lineUserId = window.currentUser ? window.currentUser.lineUserId : "";
+
+  if (!team)       { showToast("⚠️ Please select your team"); return; }
+  if (!lineUserId) { showToast("⚠️ LINE identity not found — please reopen this form"); return; }
+
+  const btn = document.getElementById("btn-profile");
+  btn.disabled    = true;
+  btn.textContent = "Saving…";
+
+  try {
+    console.log("STEP 5: Saving profile — lineUserId=" + lineUserId + " team=" + team);
+    const qs     = new URLSearchParams({ action: "saveProfile", lineUserId, name, role, team, reportsTo: reportsTo || "" });
+    const result = await jsonpCall(GAS_URL + "?" + qs);
+    if (!result.success) throw new Error(result.error || "Save failed");
+    console.log("STEP 5: Profile saved → transitioning to data entry");
+    window.currentUser = { lineUserId, name, role, team, reportsTo };
+    document.getElementById("profile-setup").style.display = "none";
+    showDataEntry();
+  } catch (err) {
+    btn.disabled    = false;
+    btn.textContent = "Save & Continue →";
+    showToast("❌ " + (err.message || "Save failed — try again"));
+  }
+}
+
+// ── Data Entry ────────────────────────────────────────────────────────────────
+
+function showDataEntry() {
+  document.getElementById("loading").style.display       = "none";
+  document.getElementById("profile-setup").style.display = "none";
+  document.getElementById("data-entry").style.display    = "block";
+
+  if (window.currentUser && window.currentUser.name) {
+    const u = window.currentUser;
+    document.getElementById("profile-text").textContent =
+      "👤 " + u.name + "  |  " + (u.team || "—") + "  |  " + (u.role || "Sales Rep");
+    document.getElementById("profile-banner").style.display = "block";
+    document.getElementById("form-tabs").style.top = "40px";
+  }
+
+  switchTab(currentTab);
+}
+
+function switchTab(type) {
+  currentTab = type;
+  document.querySelectorAll(".form-panel").forEach(el => el.style.display = "none");
+  const panel = document.getElementById("form-" + type);
+  if (panel) panel.style.display = "block";
+  document.querySelectorAll(".tab-btn").forEach(btn =>
+    btn.classList.toggle("active", btn.dataset.type === type));
+}
+
+// ── Three-button submit ───────────────────────────────────────────────────────
+// add-item: submit + keep customer, clear product/commercial fields
+// add-new:  submit + clear everything, stay on form
+// close:    submit + show success + close LIFF
+
+const CLEAR_CFG = {
+  pending: {
+    keep:  ["p-customer_name"],
+    clear: ["p-shop_type","p-category","p-beef_cut","p-beef_grade","p-product_spec",
+            "p-monthly_volume","p-target_price","p-current_supplier","p-notes"],
+    dates: ["p-entry_date"],
+  },
+  reprocess: {
+    keep:  ["r-customer_name"],
+    clear: ["r-shop_type","r-category","r-beef_cut","r-beef_grade","r-product_spec",
+            "r-product_code","r-code_exists","r-expected_volume","r-target_price",
+            "r-reprocess_type","r-last_chase_date","r-notes"],
+    dates: ["r-request_date"],
+  },
+  recovery: {
+    keep:  ["lb-customer_name","lb-customer_code"],
+    clear: ["lb-shop_type","lb-category","lb-beef_cut","lb-beef_grade","lb-product_code",
+            "lb-product_details","lb-prev_volume","lb-prev_price","lb-loss_type",
+            "lb-competitor_supplier","lb-competitor_price","lb-what_went_wrong",
+            "lb-when_did_we_lose","lb-was_preventable"],
+    dates: ["lb-entry_date"],
+  },
+};
+
+function clearForm(tab, keepCustomer) {
+  const cfg = CLEAR_CFG[tab];
+  if (!cfg) return;
+  const today = new Date().toISOString().slice(0, 10);
+  cfg.clear.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  cfg.dates.forEach(id => { const el = document.getElementById(id); if (el) el.value = today; });
+  if (!keepCustomer) cfg.keep.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  // Reset cascading cut dropdowns
+  ["p","r","lb"].forEach(px => {
+    const el = document.getElementById(px + "-beef_cut");
+    if (el) el.innerHTML = '<option value="">— select category first —</option>';
+  });
+}
+
+function setAllBtnsDisabled(disabled) {
+  ["btn-add-item","btn-add-new","btn-close"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = disabled;
+  });
+}
+
+async function submitForm(action) {
+  const data = gatherData();
+  if (!validateRequired(data)) return;
+
+  setAllBtnsDisabled(true);
+
+  try {
+    const params = new URLSearchParams({ action: "submit", type: currentTab, ...data });
+    const result = await jsonpCall(GAS_URL + "?" + params.toString());
+    if (!result.success) throw new Error(result.error || "Server error");
+
+    if (action === "add-item") {
+      clearForm(currentTab, true);   // keep customer, reset product fields
+      showToast("✅ Item added! Add another or close.");
+      window.scrollTo(0, 0);
+    } else if (action === "add-new") {
+      clearForm(currentTab, false);  // clear everything
+      showToast("✅ Submitted! Start a new entry.");
+      window.scrollTo(0, 0);
+    } else {
+      // close
+      document.getElementById("data-entry").style.display = "none";
+      document.getElementById("success").style.display   = "flex";
+      setTimeout(() => { try { liff.closeWindow(); } catch (_) {} }, 2500);
+      return; // leave buttons disabled — form is done
+    }
+  } catch (err) {
+    showToast("❌ " + err.message);
+  }
+
+  setAllBtnsDisabled(false);
+}
+
+// ── JSONP helper ──────────────────────────────────────────────────────────────
+
+function jsonpCall(url) {
+  return new Promise((resolve, reject) => {
+    const fn    = "cb_" + Date.now() + Math.random().toString(36).slice(2);
+    const s     = document.createElement("script");
+    const timer = setTimeout(() => { cleanup(); reject(new Error("GAS timeout — check Executions log")); }, 15000);
+    window[fn]  = data => { clearTimeout(timer); cleanup(); resolve(data); };
+    s.onerror   = ()   => { clearTimeout(timer); cleanup(); reject(new Error("GAS unreachable — check deployment URL")); };
+    function cleanup() { delete window[fn]; s.parentNode && s.parentNode.removeChild(s); }
+    s.src = url + (url.includes("?") ? "&" : "?") + "callback=" + fn;
+    document.head.appendChild(s);
+  });
+}
+
+// ── localStorage dropdown cache ───────────────────────────────────────────────
+
+function getCachedDropdowns() {
+  try {
+    const s = localStorage.getItem(DD_CACHE);
+    if (!s) return null;
+    const { ts, data } = JSON.parse(s);
+    return Date.now() - ts < DD_TTL ? data : null;
+  } catch (_) { return null; }
+}
+
+function setCachedDropdowns(data) {
+  try { localStorage.setItem(DD_CACHE, JSON.stringify({ ts: Date.now(), data })); } catch (_) {}
+}
+
+// ── Dropdown population ───────────────────────────────────────────────────────
+
+function fillSelect(id, options) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const ph = el.options[0] && el.options[0].value === "" ? el.options[0].textContent : "— select —";
+  el.innerHTML = '<option value="">' + ph + '</option>';
+  (options || []).forEach(opt => {
+    const o = document.createElement("option");
+    o.value = o.textContent = opt;
+    el.appendChild(o);
+  });
+}
+
+function fillSupervisorSelect(id, supervisors) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML = '<option value="">— none / head of team —</option>';
+  (supervisors || []).forEach(s => {
+    const o = document.createElement("option");
+    o.value       = s.lineUserId;
+    o.textContent = s.name + (s.team ? " (" + s.team + ")" : "");
+    el.appendChild(o);
+  });
+}
+
+function populateDropdowns(data) {
+  ["p","r","lb"].forEach(px => {
+    fillSelect(px + "-shop_type",  data.shopTypes  || []);
+    fillSelect(px + "-beef_grade", data.beefGrades || []);
+  });
+  fillSelect("r-code_exists",      data.yesNo          || []);
+  fillSelect("r-reprocess_type",   data.reprocessTypes || []);
+  fillSelect("lb-loss_type",       data.lossTypes      || []);
+  fillSelect("lb-was_preventable", data.yesNo          || []);
+  if (document.getElementById("ps-team")) fillSelect("ps-team", data.teams || []);
+}
+
+function filterCuts(px) {
+  if (!dropdownData) return;
+  const cat  = (document.getElementById(px + "-category") || {}).value;
+  const cuts = cat === "Beef" ? (dropdownData.beefCuts || [])
+             : cat === "Lamb" ? (dropdownData.lambCuts  || []) : [];
+  const el   = document.getElementById(px + "-beef_cut");
+  if (!el) return;
+  el.innerHTML = '<option value="">' + (cat ? "— select cut —" : "— select category first —") + '</option>';
+  cuts.forEach(c => {
+    const o = document.createElement("option");
+    o.value = o.textContent = c;
+    el.appendChild(o);
+  });
+}
+
+function populateFallbackDropdowns() {
+  dropdownData = {
+    teams:          ["UPC North","UPC NE A","UPC NE B","UPC East","UPC Central","Japanese BKK","Western BKK","Hotels BKK","Food Service BKK","Bakery BKK","KA","MT","JT","Phuket A","Phuket B","Phuket C","South","Samui"],
+    shopTypes:      ["Supermarket","Hypermarket","Wet Market","Restaurant","Hotel","Caterer","Online","Distributor","Wholesaler","Cafe / Bakery","Other"],
+    beefCuts:       ["Tenderloin","Ribeye / Cube Roll","Striploin / NY Strip","T-Bone","Porterhouse","Chuck Roll","Chuck Eye Roll","Blade / Flat Iron","Short Rib","Brisket","Flank Steak","Skirt Steak","Hanger Steak","Rump / Sirloin Tip","Topside / Inside Round","Silverside / Outside Round","Knuckle","Heel Muscle","Shin / Shank","Oxtail","Ground Beef","Osso Buco","Tri-Tip","Picanha","Coulotte","Bavette / Flap Meat","Denver Cut","Teres Major","Cheek Meat","Heart","Liver","Tongue","Tripe","Other (specify)"],
+    lambCuts:       ["Lamb Rack","Lamb Loin","Lamb Leg","Lamb Shoulder","Lamb Shank","Lamb Chops","Lamb Ribs","Lamb Tenderloin","Ground Lamb","Lamb Neck","Lamb Breast","Other (specify)"],
+    beefGrades:     ["Grass-fed","Grain-fed","Angus","Angus 4-5","Wagyu MB4-5","Wagyu MB6-7","Wagyu MB8-9","Wagyu MB9+","Japanese Wagyu A4","Japanese Wagyu A5"],
+    lossTypes:      ["Price","Quality","Stock Availability","Service","Competitor Relationship","Relationship","Price & Quality","Price & Stock Availability","Stock Availability & Quality","Quality & Service","Price & Service"],
+    reprocessTypes: ["New Custom Cut","Existing Code - Need Restock","Recurring - Not Refilled"],
+    yesNo:          ["Yes","No"],
+    supervisors:    [],
+  };
+  populateDropdowns(dropdownData);
+}
+
+// ── Form data ─────────────────────────────────────────────────────────────────
+
+function val(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : "";
+}
+
+function setTodayDates() {
+  const today = new Date().toISOString().slice(0, 10);
+  ["p-entry_date","r-request_date","lb-entry_date"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = today;
+  });
+}
+
+function gatherData() {
+  const u    = window.currentUser || {};
+  const uid  = u.lineUserId || "";
+  const name = u.name       || "";
+  const team = u.team       || "";
+
+  if (currentTab === "pending") {
+    return { lineUserId: uid, entry_date: val("p-entry_date"),
+      team_name: team, sales_name: name,
+      customer_name: val("p-customer_name"), shop_type: val("p-shop_type"),
+      category: val("p-category"), beef_cut: val("p-beef_cut"),
+      beef_grade: val("p-beef_grade"), product_spec: val("p-product_spec"),
+      monthly_volume: val("p-monthly_volume"), target_price: val("p-target_price"),
+      current_supplier: val("p-current_supplier"), notes: val("p-notes") };
+  }
+  if (currentTab === "reprocess") {
+    return { lineUserId: uid, request_date: val("r-request_date"),
+      team_name: team, sales_name: name,
+      customer_name: val("r-customer_name"), shop_type: val("r-shop_type"),
+      category: val("r-category"), beef_cut: val("r-beef_cut"),
+      beef_grade: val("r-beef_grade"), product_spec: val("r-product_spec"),
+      product_code: val("r-product_code"), code_exists: val("r-code_exists"),
+      expected_volume: val("r-expected_volume"), target_price: val("r-target_price"),
+      reprocess_type: val("r-reprocess_type"), last_chase_date: val("r-last_chase_date"),
+      notes: val("r-notes") };
+  }
+  if (currentTab === "recovery") {
+    return { lineUserId: uid, entry_date: val("lb-entry_date"),
+      team_name: team, sales_name: name,
+      customer_code: val("lb-customer_code"), customer_name: val("lb-customer_name"),
+      shop_type: val("lb-shop_type"), category: val("lb-category"),
+      beef_cut: val("lb-beef_cut"), beef_grade: val("lb-beef_grade"),
+      product_code: val("lb-product_code"), product_details: val("lb-product_details"),
+      prev_volume: val("lb-prev_volume"), prev_price: val("lb-prev_price"),
+      loss_type: val("lb-loss_type"), competitor_supplier: val("lb-competitor_supplier"),
+      competitor_price: val("lb-competitor_price"),
+      what_went_wrong: val("lb-what_went_wrong"), when_did_we_lose: val("lb-when_did_we_lose"),
+      was_preventable: val("lb-was_preventable") };
+  }
+  return {};
+}
+
+function validateRequired(data) {
+  const rules = {
+    pending:   { customer_name: "Customer Name", shop_type: "Shop Type", category: "Category", beef_cut: "Cut" },
+    reprocess: { customer_name: "Customer Name" },
+    recovery:  { customer_name: "Customer Name", loss_type: "Loss Type" },
+  };
+  const missing = Object.entries(rules[currentTab] || {})
+    .filter(([k]) => !data[k]).map(([, lbl]) => lbl);
+  if (missing.length) { showToast("⚠️ Required: " + missing.join(", ")); return false; }
+  return true;
+}
+
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(() => el.classList.remove("show"), 3000);
+}
+</script>
+</body>
+</html>
