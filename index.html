@@ -432,7 +432,19 @@ async function submitProfileSetup() {
     console.log("STEP 5: Profile saved → transitioning to data entry");
     window.currentUser = { lineUserId, name, role, team, reportsTo };
     document.getElementById("profile-setup").style.display = "none";
-    showDataEntry();
+
+    // Route based on role after setup
+    if (role === "Purchasing" || role === "Purchaser" || role === "Purchasing Manager") {
+    // Purchasing roles don't need sales form
+    // Close LIFF → returns to LINE → LINE shows their purchasing menu
+    showToast("✅ Setup complete! Opening your dashboard...");
+    setTimeout(() => {
+    try { liff.closeWindow(); } catch (_) {}
+    }, 1500);
+  } else {
+    // Sales roles go straight to data entry form
+  showDataEntry();
+  }
   } catch (err) {
     btn.disabled    = false;
     btn.textContent = "Save & Continue →";
