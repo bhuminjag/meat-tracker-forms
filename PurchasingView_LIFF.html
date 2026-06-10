@@ -1,253 +1,367 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Purchasing Dashboard</title>
-  <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f5f5f5;
-      padding: 12px;
-      color: #333;
-    }
-    .container { max-width: 600px; margin: 0 auto; }
-    .header {
-      background: #1e293b;
-      color: white;
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      text-align: center;
-    }
-    .header h1 { font-size: 20px; margin-bottom: 4px; }
-    .header .role { font-size: 12px; opacity: 0.8; }
-    .loading {
-      text-align: center;
-      padding: 40px 20px;
-      color: #666;
-    }
-    .spinner {
-      border: 4px solid #f0f0f0;
-      border-top: 4px solid #1e293b;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 16px;
-    }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .error {
-      background: #fee;
-      color: #c00;
-      padding: 12px;
-      border-radius: 6px;
-      margin-bottom: 16px;
-      border-left: 4px solid #c00;
-    }
-    .summary {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .card {
-      background: white;
-      padding: 12px;
-      border-radius: 6px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-    .card .number { font-size: 24px; font-weight: bold; color: #1e293b; }
-    .card .label { font-size: 12px; color: #666; margin-top: 4px; }
-    .card.overdue { border-left: 4px solid #dc2626; }
-    .card.due-today { border-left: 4px solid #f59e0b; }
-    .card.upcoming { border-left: 4px solid #3b82f6; }
-    .card.completed { border-left: 4px solid #10b981; }
-    .section { margin-bottom: 20px; }
-    .section-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: #1e293b;
-      padding: 12px 0;
-      border-bottom: 2px solid #e5e7eb;
-      margin-bottom: 12px;
-    }
-    .item {
-      background: white;
-      padding: 12px;
-      margin-bottom: 8px;
-      border-radius: 6px;
-      border-left: 4px solid #ccc;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .item:hover { box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .item.overdue { border-left-color: #dc2626; }
-    .item.due-today { border-left-color: #f59e0b; }
-    .item.upcoming { border-left-color: #3b82f6; }
-    .item-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: start;
-      margin-bottom: 6px;
-    }
-    .item-customer { font-weight: 600; font-size: 13px; }
-    .item-promise { font-size: 11px; color: #666; }
-    .item-status {
-      font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 3px;
-      background: #e5e7eb;
-      color: #333;
-    }
-    .item-product { font-size: 12px; color: #666; margin-bottom: 4px; }
-    .item-volume { font-size: 11px; color: #999; }
-    .empty { text-align: center; color: #999; padding: 20px; font-size: 14px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Purchasing Dashboard</title>
+<script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --red:    #dc2626; --orange: #ea580c; --yellow: #ca8a04;
+  --green:  #16a34a; --blue:   #2563eb; --gray:   #6b7280;
+  --dark:   #1e293b; --bg:     #f1f5f9; --card:   #ffffff;
+  --border: #e2e8f0; --text:   #1e293b; --muted:  #64748b;
+  --radius: 8px;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       font-size: 13px; background: var(--bg); color: var(--text); min-height: 100vh; }
+#loading-screen { display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 100vh; padding: 24px; text-align: center; }
+#loading-screen .spin { width: 36px; height: 36px; border: 3px solid #ddd;
+  border-top-color: var(--blue); border-radius: 50%;
+  animation: s .7s linear infinite; margin-bottom: 14px; }
+#loading-screen p { color: var(--muted); font-size: 13px; }
+#error-screen { display: none; padding: 40px 24px; text-align: center; }
+#error-screen .icon { font-size: 40px; margin-bottom: 12px; }
+#error-screen h2 { font-size: 15px; color: var(--red); margin-bottom: 8px; }
+#error-screen p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+select, input, textarea { width: 100%; padding: 8px 10px; border: 1.5px solid var(--border);
+  border-radius: var(--radius); font-size: 13px; color: var(--text); background: #fff;
+  appearance: none; -webkit-appearance: none; outline: none; }
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; padding-right: 28px; }
+select:focus, input:focus, textarea:focus { border-color: var(--blue); }
+textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+#header { background: var(--dark); color: #fff; padding: 12px 14px; position: sticky; top: 0; z-index: 100; }
+#header h1 { font-size: 14px; font-weight: 700; }
+#header .sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+#refresh-btn { float: right; background: rgba(255,255,255,0.15); border: none;
+  color: #fff; padding: 4px 10px; border-radius: 999px; font-size: 11px; cursor: pointer; margin-top: -2px; }
+#summary-bar { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 14px;
+  background: #fff; border-bottom: 1px solid var(--border); }
+.badge { padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.badge.red    { background: #fee2e2; color: var(--red); }
+.badge.yellow { background: #fef9c3; color: var(--yellow); }
+.badge.green  { background: #dcfce7; color: var(--green); }
+.badge.blue   { background: #dbeafe; color: var(--blue); }
+#content { padding: 0 0 120px; }
+.section-header { padding: 8px 14px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em; position: sticky; top: 60px; z-index: 50; }
+.sec-overdue  .section-header { background: #fee2e2; color: var(--red); }
+.sec-today    .section-header { background: #fef9c3; color: #92400e; }
+.sec-upcoming .section-header { background: #dcfce7; color: var(--green); }
+.sec-complete .section-header { background: #f1f5f9; color: var(--gray); }
+.sec-nodate   .section-header { background: #f8fafc; color: var(--muted); }
+.item-card { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 14px; }
+.item-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.item-main { flex: 1; min-width: 0; }
+.item-badge { flex-shrink: 0; padding: 2px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+.item-badge.pending   { background: #dbeafe; color: var(--blue); }
+.item-badge.reprocess { background: #ede9fe; color: #6d28d9; }
+.item-badge.recovery  { background: #fee2e2; color: var(--red); }
+.item-customer { font-weight: 700; font-size: 13px; }
+.item-product  { color: var(--muted); font-size: 12px; margin-top: 1px; }
+.item-meta     { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.meta-chip     { padding: 2px 7px; background: var(--bg); border-radius: 4px; font-size: 11px; color: var(--muted); }
+.meta-chip.overdue { background: #fee2e2; color: var(--red); font-weight: 600; }
+.meta-chip.today   { background: #fef9c3; color: #92400e; font-weight: 600; }
+.item-status { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.btn-update { margin-top: 8px; padding: 5px 12px; background: var(--blue); color: #fff;
+  border: none; border-radius: var(--radius); font-size: 12px; font-weight: 600; cursor: pointer; }
+.update-panel { display: none; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 10px; }
+.update-panel.open { display: block; }
+.field-row { margin-bottom: 8px; }
+.field-row label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+.btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.btn-save   { flex: 1; padding: 7px; background: var(--green); color: #fff; border: none;
+  border-radius: var(--radius); font-size: 12px; font-weight: 700; cursor: pointer; }
+.btn-cancel { padding: 7px 12px; background: var(--bg); color: var(--gray);
+  border: 1.5px solid var(--border); border-radius: var(--radius); font-size: 12px; cursor: pointer; }
+.btn-save:disabled { opacity: .5; cursor: not-allowed; }
+#toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--dark); color: #fff; padding: 8px 18px; border-radius: 999px;
+  font-size: 12px; opacity: 0; transition: opacity .3s; z-index: 999;
+  pointer-events: none; white-space: nowrap; max-width: 90vw; text-align: center; }
+#toast.show { opacity: 1; }
+#spinner { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.7);
+  align-items: center; justify-content: center; z-index: 900; }
+#spinner.on { display: flex; }
+.spin { width: 30px; height: 30px; border: 3px solid #ddd; border-top-color: var(--blue);
+  border-radius: 50%; animation: s .7s linear infinite; }
+@keyframes s { to { transform: rotate(360deg); } }
+.empty-msg { padding: 14px; color: var(--muted); font-style: italic; font-size: 12px; text-align: center; }
+#dashboard { display: none; }
+</style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>📋 Purchasing Dashboard</h1>
-      <div class="role" id="userRole">Loading...</div>
-    </div>
-    <div id="content">
-      <div class="loading">
-        <div class="spinner"></div>
-        <p>Loading your dashboard...</p>
-      </div>
-    </div>
+
+<div id="spinner"><div class="spin"></div></div>
+<div id="toast"></div>
+
+<div id="loading-screen">
+  <div class="spin"></div>
+  <p>Loading your dashboard…</p>
+</div>
+
+<div id="error-screen">
+  <div class="icon">⚠️</div>
+  <h2 id="error-title">Access Denied</h2>
+  <p id="error-msg">You do not have purchasing access.</p>
+</div>
+
+<div id="dashboard">
+  <div id="header">
+    <button id="refresh-btn" onclick="refresh()">↺ Refresh</button>
+    <h1>📦 Purchasing Dashboard</h1>
+    <div class="sub" id="hdr-name"></div>
   </div>
+  <div id="summary-bar"></div>
+  <div id="content"></div>
+</div>
 
-  <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbydXQlz-A_ZbkQbxsmcZ8lwN2CjjQxcb17HQqm1h-wUA344zpkPpwItSj1fB089Kz6Y/exec";
-    let lineUserId = "";
+<script>
+var LIFF_ID = "2009974531-BLvxC2PX";
+var GAS_URL = "https://script.google.com/macros/s/AKfycbydXQlz-A_ZbkQbxsmcZ8lwN2CjjQxcb17HQqm1h-wUA344zpkPpwItSj1fB089Kz6Y/exec";
+var lineUserId = "";
+var dd = {};
+var CARD_DATA = [];
 
-    // Initialize LIFF
-    liff.init({
-      liffId: "2009974531-BLvxC2PX"
-    }).then(() => {
-      if (!liff.isLoggedIn()) {
-    liff.login();
-        return;
-       }
-      // getProfile() returns a Promise — must use .then()
-      liff.getProfile().then(function(profile) {
-        lineUserId = profile.userId;
-        console.log("LIFF userId: " + lineUserId);
-        loadDashboard(lineUserId);
-      }).catch(function(err) {
-        document.getElementById("content").innerHTML =
-          '<div class="error">❌ Could not get LINE profile: ' + err.message + '</div>';
-      });
-    }).catch(function(err) {
-      document.getElementById("content").innerHTML =
-        '<div class="error">❌ LIFF init failed: ' + err.message + '</div>';
-    });
+// JSONP helper — replaces google.script.run for LIFF context
+function gasCall(params, onSuccess, onError) {
+  var cb = "cb_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+  var timer = setTimeout(function() {
+    delete window[cb];
+    if (onError) onError(new Error("Request timed out"));
+  }, 30000);
+  window[cb] = function(res) {
+    clearTimeout(timer); delete window[cb];
+    if (onSuccess) onSuccess(res);
+  };
+  var script = document.createElement("script");
+  script.src = GAS_URL + "?" + params + "&callback=" + cb;
+  script.onerror = function() {
+    clearTimeout(timer); delete window[cb];
+    if (onError) onError(new Error("Network error"));
+  };
+  document.head.appendChild(script);
+}
 
-    function loadDashboard(userId) {
-      const callback = "callback_" + Date.now();
-      window[callback] = function(response) {
-        delete window[callback];
-        if (response.error) {
-          document.getElementById("content").innerHTML = 
-            '<div class="error">❌ ' + response.error + '</div>';
-          return;
-        }
-        renderDashboard(response);
-      };
+// LIFF init
+liff.init({ liffId: LIFF_ID }).then(function() {
+  if (!liff.isLoggedIn()) { liff.login(); return; }
+  liff.getProfile().then(function(profile) {
+    lineUserId = profile.userId;
+    loadDropdowns();
+    refresh();
+  }).catch(function(err) {
+    showError("Profile Error", "Could not get LINE profile: " + err.message);
+  });
+}).catch(function(err) {
+  showError("LIFF Error", "Could not initialize LINE: " + err.message);
+});
 
-      const url = GAS_URL + "?action=getPurchasingDataByLineId&lineUserId=" + 
-                  encodeURIComponent(userId) + "&callback=" + callback;
-      
-      const script = document.createElement("script");
-      script.src = url;
-      script.onerror = function() {
-        document.getElementById("content").innerHTML = 
-          '<div class="error">❌ Failed to load data</div>';
-      };
-      document.head.appendChild(script);
+function loadDropdowns() {
+  gasCall("action=getDropdowns", function(data) {
+    dd = {
+      processStatuses: data.processStatuses || ["New","Acknowledged","Finding Supplier","Waiting Quotes from Supplier","Calculating cost/yield","Complete"],
+      leadTimes:       data.leadTimes       || ["NA","In stock","1 Week or less","2 Weeks","3-4 Weeks",">1 Month"],
+      volumeStatuses:  data.volumeStatuses  || ["Too low to process","Can not fulfill","OK"],
+      yesNo:           ["Yes","No"]
+    };
+  }, function() {
+    dd = {
+      processStatuses: ["New","Acknowledged","Finding Supplier","Waiting Quotes from Supplier","Calculating cost/yield","Complete"],
+      leadTimes:       ["NA","In stock","1 Week or less","2 Weeks","3-4 Weeks",">1 Month"],
+      volumeStatuses:  ["Too low to process","Can not fulfill","OK"],
+      yesNo:           ["Yes","No"]
+    };
+  });
+}
+
+function refresh() {
+  spinner(true);
+  gasCall(
+    "action=getPurchasingDataByLineId&lineUserId=" + encodeURIComponent(lineUserId),
+    function(data) {
+      spinner(false);
+      if (data.error) { showError("Access Denied", data.error); return; }
+      renderDashboard(data);
+    },
+    function(err) { spinner(false); toast("❌ " + err.message); }
+  );
+}
+
+function renderDashboard(data) {
+  document.getElementById("loading-screen").style.display = "none";
+  document.getElementById("dashboard").style.display = "block";
+  var user = data.user || {};
+  document.getElementById("hdr-name").textContent = (user.name || "") + " (" + (user.role || "") + ")";
+  CARD_DATA = [];
+  var s = data.summary || {};
+  document.getElementById("summary-bar").innerHTML =
+    badge(s.overdue,  "red",    "🔴 " + (s.overdue  || 0) + " Overdue") +
+    badge(s.dueToday, "yellow", "🟡 " + (s.dueToday || 0) + " Today") +
+    badge(s.upcoming, "green",  "🟢 " + (s.upcoming || 0) + " Upcoming") +
+    badge(s.total,    "blue",   "Total: " + (s.total || 0));
+  var g = data.groups || {};
+  document.getElementById("content").innerHTML =
+    renderSection("🔴 OVERDUE",     g.overdue,   "sec-overdue") +
+    renderSection("🟡 DUE TODAY",   g.dueToday,  "sec-today") +
+    renderSection("🟢 UPCOMING",    g.upcoming,  "sec-upcoming") +
+    renderSection("⚪ NO DATE SET", g.noDate,    "sec-nodate") +
+    renderSection("✅ COMPLETED",   g.completed, "sec-complete");
+  if (!s.total || s.total === 0) {
+    document.getElementById("content").innerHTML = '<div class="empty-msg">No items assigned to you</div>';
+  }
+}
+
+function badge(count, cls, label) {
+  if (!count || count === 0) return "";
+  return '<span class="badge ' + cls + '">' + label + '</span>';
+}
+
+function renderSection(title, items, cls) {
+  if (!items || items.length === 0) return "";
+  return '<div class="' + cls + '"><div class="section-header">' + title +
+    " (" + items.length + ")</div>" + items.map(renderCard).join("") + "</div>";
+}
+
+function renderCard(item) {
+  var n = CARD_DATA.length;
+  CARD_DATA.push(item);
+  var badgeCls = item.sheetLabel === "Pending" ? "pending" :
+                 item.sheetLabel === "Reprocess" ? "reprocess" : "recovery";
+  var dayChipCls = (item.daysInfo || "").indexOf("overdue") >= 0 ? "overdue" :
+                   item.daysInfo === "Due today" ? "today" : "";
+  var chips = "";
+  if (item.daysInfo)      chips += '<span class="meta-chip ' + dayChipCls + '">' + esc(item.daysInfo) + "</span>";
+  if (item.volume)        chips += '<span class="meta-chip">' + esc(item.volume) + " kg</span>";
+  if (item.targetPrice)   chips += '<span class="meta-chip">Target ฿' + esc(item.targetPrice) + "/kg</span>";
+  if (item.processStatus) chips += '<span class="meta-chip">' + esc(item.processStatus) + "</span>";
+  var id = "item-" + n;
+  return '<div class="item-card" id="' + id + '">' +
+    '<div class="item-top"><div class="item-main">' +
+    '<div class="item-customer">' + esc(item.customerName) + "</div>" +
+    '<div class="item-product">' + esc(item.beefCut) +
+    (item.beefGrade ? " · " + esc(item.beefGrade) : "") +
+    (item.chilledFrozen ? " [" + esc(item.chilledFrozen) + "]" : "") + "</div>" +
+    "</div>" +
+    '<span class="item-badge ' + badgeCls + '">' + esc(item.sheetLabel) + "</span></div>" +
+    '<div class="item-meta">' + chips + "</div>" +
+    '<div class="item-status">' + esc(item.salesName) + (item.teamName ? " (" + esc(item.teamName) + ")" : "") + "</div>" +
+    (item.enquiryNotes ? '<div class="item-status" style="margin-top:3px;font-style:italic">' + esc(item.enquiryNotes.substring(0,80)) + "</div>" : "") +
+    '<button class="btn-update" onclick="toggleUpdate(' + n + ')">✏️ Update</button>' +
+    '<div class="update-panel" id="panel-' + id + '"></div></div>';
+}
+
+function toggleUpdate(n) {
+  var id = "item-" + n;
+  var panel = document.getElementById("panel-" + id);
+  if (!panel) return;
+  if (panel.classList.contains("open")) { panel.classList.remove("open"); return; }
+  panel.innerHTML = buildUpdateForm(id, CARD_DATA[n], n);
+  panel.classList.add("open");
+  setTimeout(function() { panel.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, 50);
+}
+
+function buildUpdateForm(cardId, item, n) {
+  var ps = item.processStatus || "";
+  var showCode = item.sheetLabel !== "Recovery";
+  var psOpts = (dd.processStatuses || []).map(function(o) {
+    return '<option value="' + esc(o) + '"' + (o === ps ? " selected" : "") + ">" + esc(o) + "</option>";
+  }).join("");
+  var ltOpts = (dd.leadTimes || []).map(function(o) {
+    return '<option value="' + esc(o) + '"' + (o === item.leadTime ? " selected" : "") + ">" + esc(o) + "</option>";
+  }).join("");
+  var vrOpts = (dd.volumeStatuses || []).map(function(o) {
+    return '<option value="' + esc(o) + '"' + (o === item.volumeResult ? " selected" : "") + ">" + esc(o) + "</option>";
+  }).join("");
+  var ynOpts = ["Yes","No"].map(function(o) {
+    return '<option value="' + o + '"' + (o === item.codeExist ? " selected" : "") + ">" + o + "</option>";
+  }).join("");
+  return '<div class="field-row"><label>Process Status</label>' +
+    '<select id="up-ps-' + cardId + '"><option value=""></option>' + psOpts + '</select></div>' +
+    '<div class="field-row"><label>Promise Date</label>' +
+    '<input type="date" id="up-pd-' + cardId + '" value="' + esc(item.promiseDate || "") + '"></div>' +
+    (showCode ? '<div class="field-row"><label>Code Exist</label><select id="up-ce-' + cardId + '"><option value=""></option>' + ynOpts + '</select></div>' : "") +
+    '<div class="field-row"><label>Price (฿/kg)</label>' +
+    '<input type="number" id="up-pp-' + cardId + '" value="' + esc(item.purchPrice || "") + '" min="0" step="0.01"></div>' +
+    '<div class="field-row"><label>Lead Time</label>' +
+    '<select id="up-lt-' + cardId + '"><option value=""></option>' + ltOpts + '</select></div>' +
+    '<div class="field-row"><label>Volume Result</label>' +
+    '<select id="up-vr-' + cardId + '"><option value=""></option>' + vrOpts + '</select></div>' +
+    '<div class="field-row"><label>Valid Until</label>' +
+    '<input type="date" id="up-vu-' + cardId + '" value="' + esc(item.validUntil || "") + '"></div>' +
+    '<div class="field-row"><label>Purchasing Notes</label>' +
+    '<textarea id="up-pn-' + cardId + '">' + esc(item.purchNotes || "") + '</textarea></div>' +
+    '<div class="btn-row">' +
+    '<button class="btn-save" id="save-' + cardId + '" onclick="saveUpdate(\'' + cardId + '\',' + n + ')">💾 Save</button>' +
+    '<button class="btn-cancel" onclick="cancelUpdate(\'' + cardId + '\')">Cancel</button></div>';
+}
+
+function cancelUpdate(cardId) {
+  var panel = document.getElementById("panel-" + cardId);
+  if (panel) panel.classList.remove("open");
+}
+
+function saveUpdate(cardId, n) {
+  var item = CARD_DATA[n];
+  var updates = {};
+  var ps = gv("up-ps-" + cardId); if (ps) updates["Process_Status"] = ps;
+  var pd = gv("up-pd-" + cardId); if (pd) updates["Purch_Promise_Response_Date"] = pd;
+  var pp = gv("up-pp-" + cardId); if (pp) updates["Purch_Price_kg"] = pp;
+  var lt = gv("up-lt-" + cardId); if (lt) updates["Lead_Time"] = lt;
+  var vr = gv("up-vr-" + cardId); if (vr) updates["Volume_Result"] = vr;
+  var vu = gv("up-vu-" + cardId); if (vu) updates["Valid_Until"] = vu;
+  var pn = gv("up-pn-" + cardId); if (pn !== null) updates["Purch_Notes"] = pn;
+  if (item.sheetLabel !== "Recovery") {
+    var ce = gv("up-ce-" + cardId); if (ce) updates["Code_Exist"] = ce;
+  }
+  if (Object.keys(updates).length === 0) { toast("No changes to save"); return; }
+  var saveBtn = document.getElementById("save-" + cardId);
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
+  spinner(true);
+  gasCall(
+    "action=updatePurchasingRow" +
+    "&lineUserId=" + encodeURIComponent(lineUserId) +
+    "&sheetName="  + encodeURIComponent(item.sheetName) +
+    "&rowNumber="  + item.rowIndex +
+    "&updates="    + encodeURIComponent(JSON.stringify(updates)),
+    function(result) {
+      spinner(false);
+      if (result && result.error) {
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "💾 Save"; }
+        toast("❌ " + result.error); return;
+      }
+      toast("✅ Saved — refreshing…");
+      setTimeout(refresh, 800);
+    },
+    function(err) {
+      spinner(false);
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "💾 Save"; }
+      toast("❌ " + err.message);
     }
+  );
+}
 
-    function renderDashboard(data) {
-      const user = data.user || {};
-      const summary = data.summary || {};
-      
-      document.getElementById("userRole").innerHTML = user.name + " (" + user.role + ")";
-
-      let html = '<div class="summary">';
-      html += renderCard("overdue", summary.overdue || 0, "🔴 Overdue");
-      html += renderCard("due-today", summary.dueToday || 0, "⚠️ Due Today");
-      html += renderCard("upcoming", summary.upcoming || 0, "📅 Upcoming");
-      html += renderCard("completed", summary.completed || 0, "✅ Completed");
-      html += '</div>';
-
-      const groups = data.groups || {};
-
-      if (groups.overdue && groups.overdue.length > 0) {
-        html += '<div class="section">';
-        html += '<div class="section-title">🔴 OVERDUE (' + groups.overdue.length + ')</div>';
-        html += groups.overdue.map(item => renderItem(item, "overdue")).join("");
-        html += '</div>';
-      }
-
-      if (groups.dueToday && groups.dueToday.length > 0) {
-        html += '<div class="section">';
-        html += '<div class="section-title">⚠️ DUE TODAY (' + groups.dueToday.length + ')</div>';
-        html += groups.dueToday.map(item => renderItem(item, "due-today")).join("");
-        html += '</div>';
-      }
-
-      if (groups.upcoming && groups.upcoming.length > 0) {
-        html += '<div class="section">';
-        html += '<div class="section-title">📅 UPCOMING (' + groups.upcoming.length + ')</div>';
-        html += groups.upcoming.map(item => renderItem(item, "upcoming")).join("");
-        html += '</div>';
-      }
-
-      if (groups.noDate && groups.noDate.length > 0) {
-        html += '<div class="section">';
-        html += '<div class="section-title">❓ NO PROMISE DATE (' + groups.noDate.length + ')</div>';
-        html += groups.noDate.map(item => renderItem(item, "upcoming")).join("");
-        html += '</div>';
-      }
-
-      if (groups.completed && groups.completed.length > 0) {
-        html += '<div class="section">';
-        html += '<div class="section-title">✅ COMPLETED (' + groups.completed.length + ')</div>';
-        html += groups.completed.map(item => renderItem(item, "completed")).join("");
-        html += '</div>';
-      }
-
-      if (summary.total === 0) {
-        html += '<div class="empty">No items assigned</div>';
-      }
-
-      document.getElementById("content").innerHTML = html;
-    }
-
-    function renderCard(type, count, label) {
-      return '<div class="card ' + type + '"><div class="number">' + count + 
-             '</div><div class="label">' + label + '</div></div>';
-    }
-
-    function renderItem(item, status) {
-      const statusBadge = item.status || "Pending";
-      return '<div class="item ' + status + '">' +
-             '<div class="item-header">' +
-             '<div class="item-customer">' + (item.customer || "Unknown") + '</div>' +
-             '<div class="item-status">' + statusBadge + '</div>' +
-             '</div>' +
-             '<div class="item-product">' + (item.product || "Product") + 
-             ' / ' + (item.grade || "Grade") + '</div>' +
-             '<div class="item-volume">Volume: ' + (item.volume || "0") + 
-             ' kg | Promise: ' + (item.promiseDate || "—") + '</div>' +
-             '</div>';
-    }
-  </script>
+function gv(id) { var el = document.getElementById(id); return el ? el.value.trim() : null; }
+function esc(s) {
+  return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function toast(msg) {
+  var el = document.getElementById("toast");
+  el.textContent = msg; el.classList.add("show");
+  setTimeout(function() { el.classList.remove("show"); }, 3000);
+}
+function spinner(on) { document.getElementById("spinner").classList.toggle("on", on); }
+function showError(title, msg) {
+  document.getElementById("loading-screen").style.display = "none";
+  document.getElementById("dashboard").style.display = "none";
+  document.getElementById("error-title").textContent = title;
+  document.getElementById("error-msg").textContent = msg;
+  document.getElementById("error-screen").style.display = "block";
+}
+</script>
 </body>
 </html>
