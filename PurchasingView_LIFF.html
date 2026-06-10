@@ -129,20 +129,24 @@
 
     // Initialize LIFF
     liff.init({
-      liffId: "2009974531-BLvxC2PX"
+      liffId: "YOUR_LIFF_ID"
     }).then(() => {
       if (!liff.isLoggedIn()) {
-        liff.login();
+    liff.login();
         return;
-      }
-      const profile = liff.getProfile();
-      lineUserId = profile.userId;
-      console.log("LIFF initialized, userId=" + lineUserId);
-      loadDashboard(lineUserId);
-    }).catch(err => {
-      console.error("LIFF init error:", err);
-      document.getElementById("content").innerHTML = 
-        '<div class="error">Failed to initialize LINE. Please reload.</div>';
+       }
+      // getProfile() returns a Promise — must use .then()
+      liff.getProfile().then(function(profile) {
+        lineUserId = profile.userId;
+        console.log("LIFF userId: " + lineUserId);
+        loadDashboard(lineUserId);
+      }).catch(function(err) {
+        document.getElementById("content").innerHTML =
+          '<div class="error">❌ Could not get LINE profile: ' + err.message + '</div>';
+      });
+    }).catch(function(err) {
+      document.getElementById("content").innerHTML =
+        '<div class="error">❌ LIFF init failed: ' + err.message + '</div>';
     });
 
     function loadDashboard(userId) {
