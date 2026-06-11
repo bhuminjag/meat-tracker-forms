@@ -406,7 +406,14 @@ function saveUpdate(cardId, n) {
   var updates = {};
   var ps = gv("up-ps-"+cardId); if (ps) updates["Process_Status"] = ps;
   var pd = gv("up-pd-"+cardId); if (pd) updates["Purch_Promise_Response_Date"] = pd;
-  var pp = gv("up-pp-"+cardId); if (pp) updates["Purch_Price_kg"] = pp;
+  var pp = gv("up-pp-"+cardId);
+  if (pp) {
+    updates["Purch_Price_kg"] = pp;
+    // Auto-set Process_Status to Complete when price is provided
+    if (!updates["Process_Status"]) {
+      updates["Process_Status"] = "Complete";
+    }
+  }
   var lt = gv("up-lt-"+cardId); if (lt) updates["Lead_Time"] = lt;
   var vr = gv("up-vr-"+cardId); if (vr) updates["Volume_Result"] = vr;
   var vu = gv("up-vu-"+cardId); if (vu) updates["Valid_Until"] = vu;
