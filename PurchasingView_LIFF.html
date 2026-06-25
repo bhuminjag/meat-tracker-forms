@@ -125,6 +125,12 @@ textarea { resize:vertical; min-height:60px; font-family:inherit; }
 @keyframes s { to { transform:rotate(360deg); } }
 .empty-msg { padding:24px; color:var(--muted); font-style:italic; font-size:12px; text-align:center; }
 #dashboard { display:none; }
+
+#ps-filter-bar { display:flex; gap:6px; padding:7px 10px; background:#fff;
+  border-bottom:1px solid var(--border); overflow-x:auto;
+  -webkit-overflow-scrolling:touch; }
+#ps-filter-bar::-webkit-scrollbar { display:none; }
+.ps-btn.active { background:#7c3aed; color:#fff; border-color:#7c3aed; }
 </style>
 </head>
 <body>
@@ -157,6 +163,16 @@ textarea { resize:vertical; min-height:60px; font-family:inherit; }
     <button class="filter-btn green"  data-filter="upcoming" onclick="setFilter('upcoming')">🟢 Upcoming</button>
     <button class="filter-btn gray"   data-filter="nodate"   onclick="setFilter('nodate')">❓ No Date</button>
     <button class="filter-btn teal"   data-filter="complete" onclick="setFilter('complete')">✅ Done</button>
+  </div>
+  <!-- Process Status filter bar -->
+  <div id="ps-filter-bar">
+    <button class="filter-btn ps-btn active" data-ps="all"                          onclick="setPS('all')">All Status</button>
+    <button class="filter-btn ps-btn"        data-ps="New"                          onclick="setPS('New')">🆕 New</button>
+    <button class="filter-btn ps-btn"        data-ps="Acknowledged"                 onclick="setPS('Acknowledged')">👀 Acknowledged</button>
+    <button class="filter-btn ps-btn"        data-ps="Finding Supplier"             onclick="setPS('Finding Supplier')">🔍 Finding</button>
+    <button class="filter-btn ps-btn"        data-ps="Waiting Quotes from Supplier" onclick="setPS('Waiting Quotes from Supplier')">💬 Waiting</button>
+    <button class="filter-btn ps-btn"        data-ps="Calculating cost/yield"       onclick="setPS('Calculating cost/yield')">🧮 Calculating</button>
+    <button class="filter-btn ps-btn"        data-ps="Complete"                     onclick="setPS('Complete')">✅ Complete</button>
   </div>
   <div id="content"></div>
 </div>
@@ -232,26 +248,45 @@ function refresh() {
 // ── Filter logic ──────────────────────────────────────────────────────────────
 function setFilter(filter) {
   activeFilter = filter;
-  // Update button styles
-  document.querySelectorAll(".filter-btn").forEach(function(btn) {
+  document.querySelectorAll(".filter-btn:not(.ps-btn)").forEach(function(btn) {
     btn.classList.toggle("active", btn.dataset.filter === filter);
   });
-  // Show/hide sections
-  var sectionMap = {
-    overdue:  ["sec-overdue"],
-    today:    ["sec-today"],
-    upcoming: ["sec-upcoming"],
-    nodate:   ["sec-nodate"],
-    complete: ["sec-complete"],
-    all:      ["sec-overdue","sec-today","sec-upcoming","sec-nodate","sec-complete"]
-  };
-  var toShow = sectionMap[filter] || sectionMap["all"];
-  document.querySelectorAll(".section-wrap").forEach(function(sec) {
-    var shouldShow = toShow.some(function(cls) { return sec.classList.contains(cls); });
-    sec.classList.toggle("hidden", !shouldShow);
-  });
+  applyFilters();
 }
 
+var activePS = "all";
+
+function setPS(ps) {
+  activePS = ps;
+  document.querySelectorAll(".ps-btn").forEach(function(btn) {
+    btn.classList.toggle("active", btn.dataset.ps === ps);
+  });
+  applyFilters();
+}
+
+function applyFilters() {
+  document.querySelectorAll(".section-wrap").forEach(function(sec) {
+    // Step 1: Check urgency filter
+    var urgencyMatch = activeFilter === "all" ||
+      (activeFilter === "overdue"  && sec.classList.contains("sec-overdue"))  ||
+      (activeFilter === "today"    && sec.classList.contains("sec-today"))    ||
+      (activeFilter === "upcoming" && sec.classList.contains("sec-upcoming")) ||
+      (activeFilter === "nodate"   && sec.classList.contains("sec-nodate"))   ||
+      (activeFilter === "complete" && sec.classList.contains("sec-complete"));
+
+    if (!urgencyMatch) { sec.classList.add("hidden"); return; }
+    sec.classList.remove("hidden");
+
+    // Step 2: Filter individual items by Process Status
+    sec.querySelectorAll(".item-card").forEach(function(card) {
+      if (activePS === "all") {
+        card.style.display = "";
+      } else {
+        card.style.display = (card.dataset.ps === activePS) ? "" : "none";
+      }
+    });
+  });
+}
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderDashboard(data) {
   document.getElementById("loading-screen").style.display = "none";
@@ -335,7 +370,7 @@ function renderCard(item) {
   if (item.targetPrice)   chips += '<span class="meta-chip">Target ฿' + esc(item.targetPrice) + "/kg</span>";
   if (item.processStatus) chips += '<span class="meta-chip">' + esc(item.processStatus) + "</span>";
   var id = "item-" + n;
-  return '<div class="item-card" id="' + id + '">' +
+  return '<div class="item-card" id="' + id + '" data-ps="' + esc(item.processStatus || "") + '">' +
     '<div class="item-top"><div class="item-main">' +
     '<div class="item-customer">' + esc(item.customerName) + "</div>" +
     '<div class="item-product">' + esc(item.beefCut) +
