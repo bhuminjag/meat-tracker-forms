@@ -171,7 +171,7 @@
     </div>
     <div class="card">
       <div class="card-title">Product</div>
-      <div class="field"><label>Category <span class="req">*</span></label><select id="p-category" onchange="filterCuts('p')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
+      <div class="field"><label>Category <span class="req">*</span></label><select id="p-category" onchange="filterCuts('p'); filterGrades('p')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
       <div class="field"><label>Cut <span class="req">*</span></label><select id="p-beef_cut"><option value="">— select category first —</option></select></div>
       <div class="field"><label>Grade</label><select id="p-beef_grade"><option value="">— select —</option></select></div>
       <div class="field"><label>Chilled / Frozen <span class="req">*</span></label><select id="p-chilled_frozen"><option value="">— select —</option></select></div>
@@ -199,7 +199,7 @@
     </div>
     <div class="card">
       <div class="card-title">Product</div>
-      <div class="field"><label>Category</label><select id="r-category" onchange="filterCuts('r')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
+      <div class="field"><label>Category</label><select id="r-category" onchange="filterCuts('r'); filterGrades('r')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
       <div class="field"><label>Cut</label><select id="r-beef_cut"><option value="">— select category first —</option></select></div>
       <div class="field"><label>Grade</label><select id="r-beef_grade"><option value="">— select —</option></select></div>
       <div class="field"><label>Chilled / Frozen <span class="req">*</span></label><select id="r-chilled_frozen"><option value="">— select —</option></select></div>
@@ -231,7 +231,7 @@
     </div>
     <div class="card">
       <div class="card-title">Lost Product</div>
-      <div class="field"><label>Category</label><select id="lb-category" onchange="filterCuts('lb')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
+      <div class="field"><label>Category</label><select id="lb-category" onchange="filterCuts('lb'); filterGrades('lb')"><option value="">— select —</option><option>Beef</option><option>Lamb</option></select></div>
       <div class="field"><label>Cut</label><select id="lb-beef_cut"><option value="">— select category first —</option></select></div>
       <div class="field"><label>Grade</label><select id="lb-beef_grade"><option value="">— select —</option></select></div>
       <div class="field"><label>Chilled / Frozen <span class="req">*</span></label><select id="lb-chilled_frozen"><option value="">— select —</option></select></div>
@@ -640,6 +640,21 @@ function filterCuts(px) {
   cuts.forEach(c => {
     const o = document.createElement("option");
     o.value = o.textContent = c;
+    el.appendChild(o);
+  });
+}
+
+function filterGrades(px) {
+  if (!dropdownData) return;
+  const cat    = (document.getElementById(px + "-category") || {}).value;
+  const grades = cat === "Beef" ? (dropdownData.beefGrades || [])
+               : cat === "Lamb" ? (dropdownData.lambGrades  || []) : [];
+  const el     = document.getElementById(px + "-beef_grade");
+  if (!el) return;
+  el.innerHTML = '<option value="">' + (cat ? "— select grade —" : "— select —") + '</option>';
+  grades.forEach(function(g) {
+    const o = document.createElement("option");
+    o.value = o.textContent = g;
     el.appendChild(o);
   });
 }
